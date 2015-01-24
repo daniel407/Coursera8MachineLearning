@@ -1,0 +1,78 @@
+---
+title: "Course 8, Machine Learing Project"
+author: "Daniel"
+date: "01/24/2015"
+output: html_document
+---
+
+
+
+
+## Building the model
+
+### Libraries and seed
+
+For the training of the model, the author uses the caret package. The seed is set to ensure reproducibility of the analysis.
+```{r, echo=TRUE}
+library(caret)
+set.seed(510)
+```
+
+
+### Data processing
+
+The training data set is loaded from the file 'pml-training.csv' and the classe variable transformed into a factor variable in order to be able to apply the targeted model.
+```{r, echo=FALSE, eval=TRUE}
+training = read.csv('pml-training.csv', stringsAsFactors=F)
+```
+```{r, echo=TRUE, eval=TRUE}
+training$classe = factor(training$classe)
+```
+
+
+The data set appears to have sparse sections which is due to the arrangement of aggegrated values which are displayed in certain rows only. For this model, only the non-aggregated continuous data is used, therefore the data set is cleaned from aggregated data columns. Furthermore, timestamps and other meta data is removed.
+```{r, echo=TRUE}
+training_set1 = training[training$new_window=="no",]
+aggregate_identifiers = c("max","avg","kurtosis", "skewness", "min", "amplitude","var","stddev")
+for(identifier in aggregate_identifiers) {
+      isAggregate = grepl(pattern=identifier, x=names(training_set1), ignore.case=TRUE)
+      training_set1 = training_set1[,!isAggregate] 
+}
+training_set1 = training_set1[,!(names(training_set1) %in% c("X","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window"))]
+```
+
+
+For cross validation purposes, the data set is partitioned into a training and validation set.
+```{r, echo=TRUE}
+inTrain = createDataPartition(y=training_set1$classe,p=0.7,list=F)
+train1 = training_set1[inTrain,]
+validate1 = training_set1[-inTrain,]
+```
+
+
+### Training a random forest model
+
+A random forest model is chosen for this data set and the training is done using the train method in the caret package.
+```{r, echo=TRUE, eval=FALSE}
+mod_tree_100 = train(classe ~ ., method="rf", data=train1)
+```
+
+
+## Testing the model
+
+### In sample error
+The accuracy tested on the training set is:
+```{r, echo=TRUE}
+pred_tree = predict(mod_tree_100, train1)
+print(sum(pred_tree == train1$classe)/nrow(train1))
+```
+
+
+### Out of sample error
+The prediction accuracy on the testing set is (out of sample):
+```{r, echo=TRUE}
+pred_tree = predict(mod_tree_100, validate1)
+print(sum(pred_tree == validate1$classe)/nrow(validate1))
+```
+
+
